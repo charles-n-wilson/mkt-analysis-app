@@ -1,0 +1,13 @@
+# Python virtual environment
+backend/venv/
+
+# Node.js modules and build
+frontend/node_modules/
+frontend/.next/
+
+# Python and Node.js cache
+**/__pycache__/
+*.pyc
+
+# OS-specific files
+.DS_Store
