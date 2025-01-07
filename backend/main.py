@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict
 import numpy as np
 
@@ -20,40 +20,59 @@ app.add_middleware(
 MARKET_INDICES = {
     "ASX": {
         "index": "^AXJO",
-        "iron_basket": ['RIO.AX', 'FMG.AX', 'CIA.AX', 'MGT.AX', 'GRR.AX'],
-        "lithium_basket": ['PLS.AX', 'MIN.AX', 'LTR.AX', 'IGO.AX', 'AGY.AX']
+        "iron_basket": ['RIO.AX', 'FMG.AX', 'CIA.AX', 'MGT.AX', 'GRR.AX', 'BHP.AX'],
+        "lithium_basket": ['PLS.AX', 'MIN.AX', 'LTR.AX', 'IGO.AX', 'AGY.AX', 'CXO.AX', 'AKE.AX']
     },
     "FTSE 100": {
         "index": "^FTSE",
         "iron_basket": ['RIO.L', 'ANTO.L', 'BHP.L', 'GLEN.L', 'AAL.L'],
-        "lithium_basket": ['INL.L', 'SGML', 'LAC', 'ALB', 'SQM', 'ALTM']
+        "lithium_basket": ['EMH.L', 'SQM', 'ALTM']
     },
     "S&P 500": {
         "index": "^GSPC",
         "iron_basket": ['CLF', 'X', 'NUE', 'STLD', 'RS'],
-        "lithium_basket": ['ALB', 'LTHM', 'LAC', 'PLL', 'SQM']
+        "lithium_basket": ['ALB', 'LAC', 'PLL', 'SQM', 'MP']
     },
     "S&P/TSX Composite": {
-    "index": "^GSPTSE",
-    "iron_basket": ['RIO.L', 'BHP.L', 'VALE', 'FMG.AX', 'STLD'],
-    "lithium_basket": ['CRE.V)', 'SQM', 'PLL', 'ALB', 'FM.TO', 'ALTM']
+        "index": "^GSPTSE",
+        "iron_basket": ['BHP.L', 'VALE', 'TCK.B.TO', 'STLD'],
+        "lithium_basket": ['LAC.TO', 'SQM', 'PLL', 'ALB', 'FM.TO', 'ALTM']
     },
     "Brazil IBOV": {
         "index": "^BVSP",
-        "iron_basket": ['VALE', 'BHP.L', 'FMG.AX', 'STLD', 'RIO.L'],
-        "lithium_basket": ['LTHM', 'SQM', 'PLS.AX', 'MIN.AX', 'GXY.AX']
+        "iron_basket": ['VALE', 'CSNA3.SA', 'FMG.AX', 'STLD'],
+        "lithium_basket": ['LTHM', 'SQM', 'PLS.AX', 'MIN.AX']
     }
 }
 
+def get_start_date(period: str) -> str:
+    today = datetime.now()
+    if period == '1M':
+        start_date = today - timedelta(days=30)
+    elif period == '3M':
+        start_date = today - timedelta(days=90)
+    elif period == '6M':
+        start_date = today - timedelta(days=180)
+    elif period == '1Y':
+        start_date = today - timedelta(days=365)
+    elif period == '3Y':
+        start_date = today - timedelta(days=3*365)
+    else:  # 'ALL' or default
+        start_date = datetime(2020, 1, 1)
+    
+    return start_date.strftime('%Y-%m-%d')
+
 @app.get("/api/market-data/{market_index}")
-async def get_market_data(market_index: str, start_date: str = '2020-01-01'):
+async def get_market_data(market_index: str, period: str = '1Y'):
     if market_index not in MARKET_INDICES:
         raise HTTPException(status_code=404, detail="Market index not found")
     
+    start_date = get_start_date(period)
     end_date = datetime.now().strftime('%Y-%m-%d')
     market_config = MARKET_INDICES[market_index]
     
     try:
+        # Rest of the function remains the same
         # Fetch index data
         index_data = yf.download(market_config["index"], start=start_date, end=end_date)['Close']
         
