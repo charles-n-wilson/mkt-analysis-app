@@ -72,7 +72,6 @@ async def get_market_data(market_index: str, period: str = '1Y'):
     market_config = MARKET_INDICES[market_index]
     
     try:
-        # Rest of the function remains the same
         # Fetch index data
         index_data = yf.download(market_config["index"], start=start_date, end=end_date)['Close']
         
@@ -109,19 +108,23 @@ async def get_market_data(market_index: str, period: str = '1Y'):
         iron_corr = df['Index_Returns'].corr(df['Iron_Returns'])
         lithium_corr = df['Index_Returns'].corr(df['Lithium_Returns'])
         
+        # Calculate histogram with rounded bin edges
+        hist, bin_edges = np.histogram(df['Index_Returns'], bins=30)
+        bin_edges = np.round(bin_edges, 3)  # Round to 3 decimal places
+        
         # Prepare data for charts
         response_data = {
             "timeSeriesData": df.index.strftime('%Y-%m-%d').tolist(),
-            "indexReturns": df['Index_Returns'].round(2).tolist(),
-            "ironReturns": df['Iron_Returns'].round(2).tolist(),
-            "lithiumReturns": df['Lithium_Returns'].round(2).tolist(),
+            "indexReturns": df['Index_Returns'].round(3).tolist(),  # Round to 3 decimal places
+            "ironReturns": df['Iron_Returns'].round(3).tolist(),    # Round to 3 decimal places
+            "lithiumReturns": df['Lithium_Returns'].round(3).tolist(),  # Round to 3 decimal places
             "correlations": {
                 "iron": round(iron_corr, 3),
                 "lithium": round(lithium_corr, 3)
             },
             "distributionData": {
-                "bins": np.histogram(df['Index_Returns'], bins=30)[0].tolist(),
-                "binEdges": np.histogram(df['Index_Returns'], bins=30)[1].tolist()
+                "bins": hist.tolist(),
+                "binEdges": bin_edges.tolist()
             }
         }
         
