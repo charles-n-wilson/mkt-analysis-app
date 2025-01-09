@@ -21,7 +21,6 @@ const MarketAnalysisDashboard = () => {
   const [availableIndices, setAvailableIndices] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch the list of available indices
   useEffect(() => {
     fetch('http://localhost:8000/api/available-indices')
       .then(response => response.json())
@@ -35,7 +34,6 @@ const MarketAnalysisDashboard = () => {
       .catch(error => console.error('Error fetching indices:', error));
   }, []);
 
-  // Fetch market data for the selected index and period
   useEffect(() => {
     setLoading(true);
     fetch(`http://localhost:8000/api/market-data/${selectedIndex}?period=${selectedPeriod}`)
@@ -47,7 +45,6 @@ const MarketAnalysisDashboard = () => {
           return;
         }
 
-        // Process time series data with formatted dates
         const processedData = data.timeSeriesData.map((date, index) => ({
           date: new Date(date).toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' }),
           indexReturn: data.indexReturns?.[index] || 0,
@@ -55,14 +52,12 @@ const MarketAnalysisDashboard = () => {
           lithiumReturn: data.lithiumReturns?.[index] || 0,
         }));
 
-        // Process distribution data
         const distributionData = (data.distributionData?.bins || []).map((count, index) => ({
           bin: Number(((data.distributionData?.binEdges?.[index] || 0) + 
-                (data.distributionData?.binEdges?.[index + 1] || 0)) / 2).toFixed(3),
+                (data.distributionData?.binEdges?.[index + 1] || 0)) / 2).toFixed(2),
           count,
         }));
 
-        // Update state with processed data
         setMarketData({
           timeSeriesData: processedData,
           correlations: data.correlations || { iron: 0, lithium: 0 },
@@ -79,30 +74,28 @@ const MarketAnalysisDashboard = () => {
   const calculateRegressionLine = (data, xKey, yKey, correlation) => {
     if (!data.length) return [];
     
-    // Calculate means
-    const xMean = data.reduce((sum, point) => sum + point[xKey], 0) / data.length;
-    const yMean = data.reduce((sum, point) => sum + point[yKey], 0) / data.length;
+    const xValues = data.map(d => d[xKey]);
+    const yValues = data.map(d => d[yKey]);
     
-    // Calculate standard deviations
-    const xStd = Math.sqrt(data.reduce((sum, point) => sum + Math.pow(point[xKey] - xMean, 2), 0) / data.length);
-    const yStd = Math.sqrt(data.reduce((sum, point) => sum + Math.pow(point[yKey] - yMean, 2), 0) / data.length);
+    const xMean = xValues.reduce((a, b) => a + b, 0) / xValues.length;
+    const yMean = yValues.reduce((a, b) => a + b, 0) / yValues.length;
     
-    // Calculate slope using correlation
+    const xStd = Math.sqrt(xValues.reduce((sum, x) => sum + Math.pow(x - xMean, 2), 0) / xValues.length);
+    const yStd = Math.sqrt(yValues.reduce((sum, y) => sum + Math.pow(y - yMean, 2), 0) / yValues.length);
+    
     const slope = correlation * (yStd / xStd);
     const intercept = yMean - slope * xMean;
     
-    // Get min and max x values
-    const xMin = Math.min(...data.map(point => point[xKey]));
-    const xMax = Math.max(...data.map(point => point[xKey]));
+    const xMin = Math.min(...xValues);
+    const xMax = Math.max(...xValues);
     
-    // Create line points
     return [
-      { x: xMin, y: slope * xMin + intercept },
-      { x: xMax, y: slope * xMax + intercept }
+      { [xKey]: xMin, [yKey]: slope * xMin + intercept },
+      { [xKey]: xMax, [yKey]: slope * xMax + intercept }
     ];
   };
 
-  const calculateRSquared = (correlation: number) => {
+  const calculateRSquared = (correlation) => {
     return (correlation * correlation).toFixed(3);
   };
 
@@ -159,7 +152,6 @@ const MarketAnalysisDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* Time Series Chart */}
         <Card>
           <CardHeader>
             <CardTitle>{selectedIndex} Returns Over Time</CardTitle>
@@ -167,13 +159,17 @@ const MarketAnalysisDashboard = () => {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={marketData.timeSeriesData}>
+                <LineChart 
+                  data={marketData.timeSeriesData}
+                  margin={{ top: 20, right: 20, bottom: 50, left: 20 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
                     tick={{ fontSize: 12 }} 
                     angle={-45} 
                     textAnchor="end"
+                    height={40}
                   />
                   <YAxis />
                   <Tooltip />
@@ -184,7 +180,6 @@ const MarketAnalysisDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Scatter Chart for Iron Returns */}
         <Card>
           <CardHeader>
             <CardTitle>{selectedIndex} vs Iron Ore Basket</CardTitle>
@@ -197,15 +192,13 @@ const MarketAnalysisDashboard = () => {
                   <XAxis type="number" dataKey="ironReturn" name="Iron Returns" />
                   <YAxis type="number" dataKey="indexReturn" name="Index Returns" />
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                  <Scatter data={marketData.timeSeriesData} fill="#8884d8" />
-                  <Line
+                  <Scatter name="Values" data={marketData.timeSeriesData} fill="#8884d8" />
+                  <Scatter
+                    name="Regression Line"
                     data={ironRegressionLine}
-                    type="monotone"
-                    dataKey="y"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    dot={false}
-                    legendType="none"
+                    line={{ stroke: '#8884d8', strokeWidth: 2 }}
+                    lineType="joint"
+                    shape="none"
                   />
                 </ScatterChart>
               </ResponsiveContainer>
@@ -217,7 +210,6 @@ const MarketAnalysisDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Scatter Chart for Lithium Returns */}
         <Card>
           <CardHeader>
             <CardTitle>{selectedIndex} vs Lithium Basket</CardTitle>
@@ -230,15 +222,13 @@ const MarketAnalysisDashboard = () => {
                   <XAxis type="number" dataKey="lithiumReturn" name="Lithium Returns" />
                   <YAxis type="number" dataKey="indexReturn" name="Index Returns" />
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                  <Scatter data={marketData.timeSeriesData} fill="#82ca9d" />
-                  <Line
+                  <Scatter name="Values" data={marketData.timeSeriesData} fill="#82ca9d" />
+                  <Scatter
+                    name="Regression Line"
                     data={lithiumRegressionLine}
-                    type="monotone"
-                    dataKey="y"
-                    stroke="#82ca9d"
-                    strokeWidth={2}
-                    dot={false}
-                    legendType="none"
+                    line={{ stroke: '#82ca9d', strokeWidth: 2 }}
+                    lineType="joint"
+                    shape="none"
                   />
                 </ScatterChart>
               </ResponsiveContainer>
@@ -250,7 +240,6 @@ const MarketAnalysisDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Returns Distribution */}
         <Card>
           <CardHeader>
             <CardTitle>{selectedIndex} Returns Distribution</CardTitle>

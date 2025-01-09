@@ -8,7 +8,6 @@ import numpy as np
 
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -97,30 +96,31 @@ async def get_market_data(market_index: str, period: str = '1Y'):
         df['Iron'] = iron_data.mean(axis=1)
         df['Lithium'] = lithium_data.mean(axis=1)
         
-        df['Index_Returns'] = df['Index'].pct_change() * 100
-        df['Iron_Returns'] = df['Iron'].pct_change() * 100
-        df['Lithium_Returns'] = df['Lithium'].pct_change() * 100
+        # Calculate returns with 2 decimal places precision
+        df['Index_Returns'] = (df['Index'].pct_change() * 100).round(2)
+        df['Iron_Returns'] = (df['Iron'].pct_change() * 100).round(2)
+        df['Lithium_Returns'] = (df['Lithium'].pct_change() * 100).round(2)
         
         # Clean data and prepare response
         df = df.dropna()
         
-        # Calculate correlations
-        iron_corr = df['Index_Returns'].corr(df['Iron_Returns'])
-        lithium_corr = df['Index_Returns'].corr(df['Lithium_Returns'])
+        # Calculate correlations with 3 decimal places
+        iron_corr = round(df['Index_Returns'].corr(df['Iron_Returns']), 3)
+        lithium_corr = round(df['Index_Returns'].corr(df['Lithium_Returns']), 3)
         
-        # Calculate histogram with rounded bin edges
+        # Calculate histogram with rounded bin edges (2 decimal places)
         hist, bin_edges = np.histogram(df['Index_Returns'], bins=30)
-        bin_edges = np.round(bin_edges, 3)  # Round to 3 decimal places
+        bin_edges = np.round(bin_edges, 2)
         
-        # Prepare data for charts
+        # Prepare response data
         response_data = {
             "timeSeriesData": df.index.strftime('%Y-%m-%d').tolist(),
-            "indexReturns": df['Index_Returns'].round(3).tolist(),  # Round to 3 decimal places
-            "ironReturns": df['Iron_Returns'].round(3).tolist(),    # Round to 3 decimal places
-            "lithiumReturns": df['Lithium_Returns'].round(3).tolist(),  # Round to 3 decimal places
+            "indexReturns": df['Index_Returns'].tolist(),
+            "ironReturns": df['Iron_Returns'].tolist(),
+            "lithiumReturns": df['Lithium_Returns'].tolist(),
             "correlations": {
-                "iron": round(iron_corr, 3),
-                "lithium": round(lithium_corr, 3)
+                "iron": iron_corr,
+                "lithium": lithium_corr
             },
             "distributionData": {
                 "bins": hist.tolist(),
